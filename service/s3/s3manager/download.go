@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -164,6 +165,43 @@ func (d Downloader) Download(w io.WriterAt, input *s3.GetObjectInput, options ..
 	return d.DownloadWithContext(aws.BackgroundContext(), w, input, options...)
 }
 
+func (d Downloader) DownloadToFile(path string, input *s3.GetObjectInput, options ...func(*Downloader)) (int64, error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
+	errCleanup := func() {
+		file.Close()
+		os.Remove(file.Name())
+	}
+
+	if err != nil {
+		errCleanup()
+		return 0, fmt.Errorf("failed to open file: %v", err)
+	}
+
+	// TODO: do we need to handle matching parameters?
+	headObjectOutput, err := d.S3.HeadObject(&s3.HeadObjectInput{Bucket: input.Bucket, Key: input.Key})
+	if err != nil {
+		errCleanup()
+		return 0, fmt.Errorf("failed to retrieve object size: %v", err)
+	}
+
+	if headObjectOutput.ContentLength == nil {
+		errCleanup()
+		return 0, fmt.Errorf("content-length not provided")
+	}
+
+	err = file.Truncate(*headObjectOutput.ContentLength)
+	if err != nil {
+		errCleanup()
+		return 0, fmt.Errorf("failed to truncate")
+	}
+	if err = file.Close(); err != nil {
+		os.Remove(file.Name())
+		return 0, fmt.Errorf("failed to close file")
+	}
+
+	return d.downloadWithContext(aws.BackgroundContext(), newHandleWriteAtProvider(path), input, options...)
+}
+
 // DownloadWithContext downloads an object in S3 and writes the payload into w
 // using concurrent GET requests. The n int64 returned is the size of the object downloaded
 // in bytes.
@@ -192,6 +230,10 @@ func (d Downloader) Download(w io.WriterAt, input *s3.GetObjectInput, options ..
 // to perform a single GetObjectInput request for that object's range. This will
 // caused the part size, and concurrency configurations to be ignored.
 func (d Downloader) DownloadWithContext(ctx aws.Context, w io.WriterAt, input *s3.GetObjectInput, options ...func(*Downloader)) (n int64, err error) {
+	return d.downloadWithContext(ctx, staticWriteAtRetriever(w), input, options...)
+}
+
+func (d Downloader) downloadWithContext(ctx aws.Context, w writeAtCloserProvider, input *s3.GetObjectInput, options ...func(*Downloader)) (n int64, err error) {
 	impl := downloader{w: w, in: input, cfg: d, ctx: ctx}
 
 	for _, option := range options {
@@ -275,13 +317,40 @@ func (d Downloader) DownloadWithIterator(ctx aws.Context, iter BatchDownloadIter
 	return nil
 }
 
+type WriteAtCloser interface {
+	io.WriterAt
+	io.Closer
+}
+
+type WriteAtNoOpCloser struct {
+	io.WriterAt
+}
+
+func (w *WriteAtNoOpCloser) Close() error {
+	return nil
+}
+
+type writeAtCloserProvider func() (WriteAtCloser, error)
+
+func staticWriteAtRetriever(at io.WriterAt) writeAtCloserProvider {
+	return func() (WriteAtCloser, error) {
+		return &WriteAtNoOpCloser{at}, nil
+	}
+}
+
+func newHandleWriteAtProvider(path string) writeAtCloserProvider {
+	return func() (WriteAtCloser, error) {
+		return os.OpenFile(path, os.O_WRONLY, 0666)
+	}
+}
+
 // downloader is the implementation structure used internally by Downloader.
 type downloader struct {
 	ctx aws.Context
 	cfg Downloader
 
 	in *s3.GetObjectInput
-	w  io.WriterAt
+	w  writeAtCloserProvider
 
 	wg sync.WaitGroup
 	m  sync.Mutex
@@ -323,8 +392,14 @@ func (d *downloader) download() (n int64, err error) {
 				break // We're finished queuing chunks
 			}
 
+			w, err := d.w()
+			if err != nil {
+				d.setErr(err)
+				break
+			}
+
 			// Queue the next range of bytes to read.
-			ch <- dlchunk{w: d.w, start: d.pos, size: d.cfg.PartSize}
+			ch <- dlchunk{w: w, start: d.pos, size: d.cfg.PartSize}
 			d.pos += d.cfg.PartSize
 		}
 
@@ -383,7 +458,13 @@ func (d *downloader) getChunk() {
 		return
 	}
 
-	chunk := dlchunk{w: d.w, start: d.pos, size: d.cfg.PartSize}
+	w, err := d.w()
+	if err != nil {
+		d.setErr(err)
+		return
+	}
+
+	chunk := dlchunk{w: w, start: d.pos, size: d.cfg.PartSize}
 	d.pos += d.cfg.PartSize
 
 	if err := d.downloadChunk(chunk); err != nil {
@@ -398,7 +479,13 @@ func (d *downloader) downloadRange(rng string) {
 		return
 	}
 
-	chunk := dlchunk{w: d.w, start: d.pos}
+	w, err := d.w()
+	if err != nil {
+		d.setErr(err)
+		return
+	}
+
+	chunk := dlchunk{w: w, start: d.pos}
 	// Ranges specified will short circuit the multipart download
 	chunk.withRange = rng
 
@@ -423,6 +510,10 @@ func (d *downloader) downloadChunk(chunk dlchunk) error {
 	for retry := 0; retry <= d.partBodyMaxRetries; retry++ {
 		n, err = d.tryDownloadChunk(in, &chunk)
 		if err == nil {
+			err = chunk.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close chunk writer: %v", err)
+			}
 			break
 		}
 		// Check if the returned error is an errReadingBody.
@@ -561,7 +652,7 @@ func (d *downloader) setErr(e error) {
 // io.WriterAt, effectively making it an io.SectionWriter (which does not
 // exist).
 type dlchunk struct {
-	w     io.WriterAt
+	w     WriteAtCloser
 	start int64
 	size  int64
 	cur   int64
@@ -594,4 +685,8 @@ func (c *dlchunk) ByteRange() string {
 	}
 
 	return fmt.Sprintf("bytes=%d-%d", c.start, c.start+c.size-1)
+}
+
+func (c *dlchunk) Close() error {
+	return c.w.Close()
 }
