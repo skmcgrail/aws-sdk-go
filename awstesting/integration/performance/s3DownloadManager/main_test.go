@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/awstesting/integration"
@@ -94,9 +95,71 @@ func BenchmarkDownload(b *testing.B) {
 	}
 }
 
+func BenchmarkDownloadToFile(b *testing.B) {
+	baseSdkConfig := SDKConfig{}
+
+	// FileSizes: 5 MB, 1 GB
+	for _, fileSize := range []int64{5 * integration.MebiByte, 1 * integration.Gibibyte} {
+		b.Run(fmt.Sprintf("%s File", integration.SizeToName(int(fileSize))), func(b *testing.B) {
+			key, err := setupDownloadTest(benchConfig.bucket, fileSize)
+			if err != nil {
+				b.Fatalf("failed to setup download test: %v", err)
+			}
+
+			f := filepath.Join(benchConfig.tempdir, integration.UniqueID())
+
+			// Concurrency: 5, 10, 100
+			for _, concurrency := range []int{s3manager.DefaultDownloadConcurrency, 2 * s3manager.DefaultUploadConcurrency, 100} {
+				b.Run(fmt.Sprintf("%d Concurrency", concurrency), func(b *testing.B) {
+					// PartSize: 5 MB, 25 MB, 100 MB
+					for _, partSize := range []int64{s3manager.DefaultDownloadPartSize, 25 * integration.MebiByte, 100 * integration.MebiByte} {
+						if partSize > fileSize {
+							continue
+						}
+						b.Run(fmt.Sprintf("%s PartSize", integration.SizeToName(int(partSize))), func(b *testing.B) {
+							for _, strat := range benchStrategies {
+								b.Run(strat.name, func(b *testing.B) {
+									sdkConfig := baseSdkConfig
+									sdkConfig.Concurrency = concurrency
+									sdkConfig.PartSize = partSize
+									sdkConfig.DownloadStrategy = strat.strategy
+
+									b.ResetTimer()
+									for i := 0; i < b.N; i++ {
+										benchDownloadToFile(b, benchConfig.bucket, key, f, sdkConfig, benchConfig.clientConfig)
+									}
+								})
+							}
+						})
+					}
+				})
+			}
+			err = os.Remove(f)
+			if err != nil {
+				b.Errorf("failed to remove file: %v", err)
+			}
+			err = teardownDownloadTest(benchConfig.bucket, key)
+			if err != nil {
+				b.Errorf("failed to cleanup test file: %v", err)
+			}
+		})
+	}
+}
+
 func benchDownload(b *testing.B, bucket, key string, body io.WriterAt, sdkConfig SDKConfig, clientConfig ClientConfig) {
 	downloader := newDownloader(clientConfig, sdkConfig)
 	_, err := downloader.Download(body, &s3.GetObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	})
+	if err != nil {
+		b.Fatalf("failed to download object, %v", err)
+	}
+}
+
+func benchDownloadToFile(b *testing.B, bucket, key string, file string, sdkConfig SDKConfig, clientConfig ClientConfig) {
+	downloader := newDownloader(clientConfig, sdkConfig)
+	_, err := downloader.DownloadToFile(file, &s3.GetObjectInput{
 		Bucket: &bucket,
 		Key:    &key,
 	})
