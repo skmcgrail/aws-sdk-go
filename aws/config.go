@@ -208,7 +208,21 @@ type Config struct {
 	//     svc := s3.New(sess, &aws.Config{
 	//         UseDualStack: aws.Bool(true),
 	//     })
+	//
+	// Deprecated: This option will continue to function for S3 and S3 Control for backwards compatibility.
+	// DualStackEndpoint should be used to enable usage of a service's dual-stack endpoint for all service clients
+	// moving forward. For S3 and S3 Control, when DualStackEndpoint is set to a non-zero value it takes higher
+	// precedence then this option.
 	UseDualStack *bool
+
+	// Sets the resolver to resolve the endpoint as a dual-stack endpoint
+	// for the service.
+	//
+	// When enabled, the resolver may in some cases return an endpoint using either the partition or services
+	// dual-stack endpoint pattern which may not be valid or available. In the event that the service or partition
+	// does not have a default dual-stack pattern, and the client's configured region is not an explicitly modeled
+	// endpoint an error will be returned.
+	DualStackEndpoint endpoints.DualStackEndpoint
 
 	// SleepDelay is an override for the func the SDK will call when sleeping
 	// during the lifecycle of a request. Specifically this will be used for
@@ -552,6 +566,10 @@ func mergeInConfig(dst *Config, other *Config) {
 
 	if other.UseDualStack != nil {
 		dst.UseDualStack = other.UseDualStack
+	}
+
+	if other.DualStackEndpoint != endpoints.DualStackEndpointUnset {
+		dst.DualStackEndpoint = other.DualStackEndpoint
 	}
 
 	if other.EC2MetadataDisableTimeoutOverride != nil {

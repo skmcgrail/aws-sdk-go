@@ -763,6 +763,13 @@ func mergeConfigSrcs(cfg, userCfg *aws.Config,
 		cfg.S3UseARNRegion = &sharedCfg.S3UseARNRegion
 	}
 
+	for _, v := range []endpoints.DualStackEndpoint{userCfg.DualStackEndpoint, envCfg.UseDualStackEndpoint, sharedCfg.UseDualStackEndpoint} {
+		if v != endpoints.DualStackEndpointUnset {
+			cfg.DualStackEndpoint = v
+			break
+		}
+	}
+
 	return nil
 }
 
@@ -855,7 +862,10 @@ func (s *Session) resolveEndpoint(service, region string, cfg *aws.Config) (endp
 	resolved, err := cfg.EndpointResolver.EndpointFor(service, region,
 		func(opt *endpoints.Options) {
 			opt.DisableSSL = aws.BoolValue(cfg.DisableSSL)
+
 			opt.UseDualStack = aws.BoolValue(cfg.UseDualStack)
+			opt.DualStackEndpoint = cfg.DualStackEndpoint
+
 			// Support for STSRegionalEndpoint where the STSRegionalEndpoint is
 			// provided in envConfig or sharedConfig with envConfig getting
 			// precedence.

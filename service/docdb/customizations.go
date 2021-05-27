@@ -83,6 +83,7 @@ func presignURL(r *request.Request, sourceRegion *string, newParams interface{})
 		func(opt *endpoints.Options) {
 			opt.DisableSSL = aws.BoolValue(cfg.DisableSSL)
 			opt.UseDualStack = aws.BoolValue(cfg.UseDualStack)
+			opt.DualStackEndpoint = cfg.DualStackEndpoint
 		},
 	)
 	if err != nil {
