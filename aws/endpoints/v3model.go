@@ -119,14 +119,11 @@ func (p partition) EndpointFor(service, region string, opts ...func(*Options)) (
 		region = s.PartitionEndpoint
 	}
 
-	isDualStack := opt.isUseDualStackEndpoint(service)
-
-	if !isDualStack && ((service == "sts" && opt.STSRegionalEndpoint != RegionalSTSEndpoint) ||
-		(service == "s3" && opt.S3UsEast1RegionalEndpoint != RegionalS3UsEast1Endpoint)) {
-		if _, ok := legacyGlobalRegions[service][region]; ok {
-			region = "aws-global"
-		}
+	if r, ok := isLegacyGlobalRegion(service, region, opt); ok {
+		region = r
 	}
+
+	isDualStack := opt.isUseDualStackEndpoint(service)
 
 	endpoints := s.Endpoints
 	dnsSuffix := p.DNSSuffix
@@ -145,14 +142,41 @@ func (p partition) EndpointFor(service, region string, opts ...func(*Options)) (
 		dnsTemplateKey = dualStackDNSSuffixTemplateKey
 	}
 
+	emptyDefaults := serviceDefaults.isZero() && partitionDefaults.isZero()
+
 	e, hasEndpoint := s.endpointForRegion(region, endpoints)
-	if len(region) == 0 || (!hasEndpoint && opt.StrictMatching) || (isDualStack && !hasEndpoint && serviceDefaults.isZero() && partitionDefaults.isZero()) {
+	if len(region) == 0 || (!hasEndpoint && (opt.StrictMatching || (isDualStack && emptyDefaults))) {
 		return resolved, NewUnknownEndpointError(p.ID, service, region, endpointList(endpoints))
 	}
 
 	defs := []endpoint{partitionDefaults, serviceDefaults}
 
 	return e.resolve(service, p.ID, region, dnsTemplateKey, dnsSuffix, defs, opt)
+}
+
+func isLegacyGlobalRegion(service string, region string, opt Options) (string, bool) {
+	if opt.isUseDualStackEndpoint(service) {
+		return region, false
+	}
+
+	const (
+		sts       = "sts"
+		s3        = "s3"
+		awsGlobal = "aws-global"
+	)
+
+	switch {
+	case service == sts && opt.STSRegionalEndpoint == RegionalSTSEndpoint:
+		return region, false
+	case service == s3 && opt.S3UsEast1RegionalEndpoint == RegionalS3UsEast1Endpoint:
+		return region, false
+	default:
+		if _, ok := legacyGlobalRegions[service][region]; ok {
+			return awsGlobal, true
+		}
+	}
+
+	return region, false
 }
 
 func serviceList(ss services) []string {

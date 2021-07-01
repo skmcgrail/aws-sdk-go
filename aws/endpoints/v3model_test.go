@@ -346,7 +346,7 @@ func TestResolveEndpoint_UseDualStack_UseDualStackEndpoint(t *testing.T) {
 			ExpectedSigningName:   "s3-control",
 			ExpectedSigningRegion: "us-west-2",
 		},
-		"DualStackEndpoint applies to all services": {
+		"UseDualStackEndpoint applies to all services": {
 			Service:                  "service1",
 			Region:                   "us-west-2",
 			Options:                  DualStackEndpointOption,
@@ -355,7 +355,7 @@ func TestResolveEndpoint_UseDualStack_UseDualStackEndpoint(t *testing.T) {
 			ExpectedSigningRegion:    "us-west-2",
 			ExpectSigningNameDerived: true,
 		},
-		"DualStackEndpoint applies to s3": {
+		"UseDualStackEndpoint applies to s3": {
 			Service:               "s3",
 			Region:                "us-west-2",
 			Options:               DualStackEndpointOption,
@@ -363,7 +363,7 @@ func TestResolveEndpoint_UseDualStack_UseDualStackEndpoint(t *testing.T) {
 			ExpectedSigningName:   "s3",
 			ExpectedSigningRegion: "us-west-2",
 		},
-		"DualStackEndpoint applies to s3-control": {
+		"UseDualStackEndpoint applies to s3-control": {
 			Service:               "s3-control",
 			Region:                "us-west-2",
 			Options:               DualStackEndpointOption,
@@ -371,35 +371,35 @@ func TestResolveEndpoint_UseDualStack_UseDualStackEndpoint(t *testing.T) {
 			ExpectedSigningName:   "s3-control",
 			ExpectedSigningRegion: "us-west-2",
 		},
-		"DualStackEndpoint setting has higher precedence then UseDualStack for s3": {
+		"UseDualStackEndpoint setting has higher precedence then UseDualStack for s3": {
 			Service: "s3",
 			Region:  "us-west-2",
 			Options: func(options *Options) {
 				options.UseDualStack = true
-				options.DualStackEndpoint = DualStackEndpointDisabled
+				options.UseDualStackEndpoint = DualStackEndpointStateDisabled
 			},
 			ExpectedURL:           "https://s3.us-west-2.amazonaws.com",
 			ExpectedSigningName:   "s3",
 			ExpectedSigningRegion: "us-west-2",
 		},
-		"DualStackEndpoint setting has higher precedence then UseDualStack for s3-control": {
+		"UseDualStackEndpoint setting has higher precedence then UseDualStack for s3-control": {
 			Service: "s3-control",
 			Region:  "us-west-2",
 			Options: func(options *Options) {
 				options.UseDualStack = true
-				options.DualStackEndpoint = DualStackEndpointDisabled
+				options.UseDualStackEndpoint = DualStackEndpointStateDisabled
 			},
 			ExpectedURL:           "https://s3-control.us-west-2.amazonaws.com",
 			ExpectedSigningName:   "s3-control",
 			ExpectedSigningRegion: "us-west-2",
 		},
-		"DualStackEndpoint in partition with no partition or service defaults": {
+		"UseDualStackEndpoint in partition with no partition or service defaults": {
 			Service:   "service1",
 			Region:    "cn-north-2",
 			Options:   DualStackEndpointOption,
 			ExpectErr: true,
 		},
-		"DualStackEndpoint in partition with no partition or service defaults and modeled region": {
+		"UseDualStackEndpoint in partition with no partition or service defaults and modeled region": {
 			Service:               "service1",
 			Region:                "cn-north-1",
 			Options:               DualStackEndpointOption,
@@ -407,7 +407,7 @@ func TestResolveEndpoint_UseDualStack_UseDualStackEndpoint(t *testing.T) {
 			ExpectedSigningName:   "service1",
 			ExpectedSigningRegion: "cn-north-1",
 		},
-		"DualStackEndpoint with partition endpoint": {
+		"UseDualStackEndpoint with partition endpoint": {
 			Service:                  "globalService",
 			Region:                   "aws-global",
 			Options:                  DualStackEndpointOption,
@@ -416,7 +416,7 @@ func TestResolveEndpoint_UseDualStack_UseDualStackEndpoint(t *testing.T) {
 			ExpectedSigningRegion:    "us-east-1",
 			ExpectSigningNameDerived: true,
 		},
-		"DualStackEndpoint with fips partition endpoint": {
+		"UseDualStackEndpoint with fips partition endpoint": {
 			Service:                  "globalService",
 			Region:                   "fips-aws-global",
 			Options:                  DualStackEndpointOption,
@@ -425,7 +425,7 @@ func TestResolveEndpoint_UseDualStack_UseDualStackEndpoint(t *testing.T) {
 			ExpectedSigningRegion:    "us-east-1",
 			ExpectSigningNameDerived: true,
 		},
-		"DualStackEndpoint fallback to partition endpoint": {
+		"UseDualStackEndpoint fallback to partition endpoint": {
 			Service:                  "globalService",
 			Region:                   "us-west-2",
 			Options:                  DualStackEndpointOption,

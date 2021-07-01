@@ -258,10 +258,10 @@ func TestOptionsSet(t *testing.T) {
 	actual.Set(DisableSSLOption, UseDualStackOption, StrictMatchingOption, DualStackEndpointOption)
 
 	expect := Options{
-		DisableSSL:        true,
-		UseDualStack:      true,
-		DualStackEndpoint: DualStackEndpointEnabled,
-		StrictMatching:    true,
+		DisableSSL:           true,
+		UseDualStack:         true,
+		UseDualStackEndpoint: DualStackEndpointStateEnabled,
+		StrictMatching:       true,
 	}
 
 	if actual != expect {

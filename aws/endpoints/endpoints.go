@@ -8,20 +8,20 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 )
 
-// DualStackEndpoint is a constant to describe the dual-stack endpoint resolution
+// DualStackEndpointState is a constant to describe the dual-stack endpoint resolution
 // behavior.
-type DualStackEndpoint uint
+type DualStackEndpointState uint
 
 const (
-	// DualStackEndpointUnset is the default value behavior for dual-stack endpoint
+	// DualStackEndpointStateUnset is the default value behavior for dual-stack endpoint
 	// resolution.
-	DualStackEndpointUnset DualStackEndpoint = iota
+	DualStackEndpointStateUnset DualStackEndpointState = iota
 
-	// DualStackEndpointEnabled enable dual-stack endpoint resolution for endpoints.
-	DualStackEndpointEnabled
+	// DualStackEndpointStateEnabled enable dual-stack endpoint resolution for endpoints.
+	DualStackEndpointStateEnabled
 
-	// DualStackEndpointDisabled disables dual-stack endpoint resolution for endpoints.
-	DualStackEndpointDisabled
+	// DualStackEndpointStateDisabled disables dual-stack endpoint resolution for endpoints.
+	DualStackEndpointStateDisabled
 )
 
 // Options provide the configuration needed to direct how the
@@ -39,19 +39,13 @@ type Options struct {
 	// dualstack endpoints.
 	//
 	// Deprecated: This option will continue to function for S3 and S3 Control for backwards compatibility.
-	// DualStackEndpoint should be used to enable usage of a service's dual-stack endpoint for all service clients
-	// moving forward. For S3 and S3 Control, when DualStackEndpoint is set to a non-zero value it takes higher
+	// UseDualStackEndpoint should be used to enable usage of a service's dual-stack endpoint for all service clients
+	// moving forward. For S3 and S3 Control, when UseDualStackEndpoint is set to a non-zero value it takes higher
 	// precedence then this option.
 	UseDualStack bool
 
-	// Sets the resolver to resolve the endpoint as a dual-stack endpoint
-	// for the service.
-	//
-	// When enabled, the resolver may in some cases return an endpoint using either the partition or services
-	// dual-stack endpoint pattern which may not be valid or available. In the event that the service or partition
-	// does not have a default dual-stack pattern, and the client's configured region is not an explicitly modeled
-	// endpoint an error will be returned.
-	DualStackEndpoint DualStackEndpoint
+	// Sets the resolver to resolve a dual-stack endpoint for the service.
+	UseDualStackEndpoint DualStackEndpointState
 
 	// Enables strict matching of services and regions resolved endpoints.
 	// If the partition doesn't enumerate the exact service and region an
@@ -86,10 +80,12 @@ type Options struct {
 }
 
 func (o Options) isUseDualStackEndpoint(service string) (v bool) {
-	if o.DualStackEndpoint != DualStackEndpointUnset {
-		return o.DualStackEndpoint == DualStackEndpointEnabled
+	if o.UseDualStackEndpoint != DualStackEndpointStateUnset {
+		return o.UseDualStackEndpoint == DualStackEndpointStateEnabled
 	}
-	if service == "s3" || service == "s3-control" {
+	const s3 = "s3"
+	const s3Control = "s3-control"
+	if service == s3 || service == s3Control {
 		return o.UseDualStack
 	}
 	return false
@@ -208,15 +204,15 @@ func DisableSSLOption(o *Options) {
 // option when resolving endpoints.
 //
 // Deprecated: DualStackEndpointOption should be used to enable usage of a service's dual-stack endpoint.
-// When DualStackEndpoint is set to a non-zero value it takes higher precedence then this option.
+// When DualStackEndpointState is set to a non-zero value it takes higher precedence then this option.
 func UseDualStackOption(o *Options) {
 	o.UseDualStack = true
 }
 
-// DualStackEndpointOption sets the DualStackEndpoint option to enabled. Can be used as a functional
+// DualStackEndpointOption sets the DualStackEndpointState option to enabled. Can be used as a functional
 // option when resolving endpoints.
 func DualStackEndpointOption(o *Options) {
-	o.DualStackEndpoint = DualStackEndpointEnabled
+	o.UseDualStackEndpoint = DualStackEndpointStateEnabled
 }
 
 // StrictMatchingOption sets the StrictMatching option. Can be used as a functional

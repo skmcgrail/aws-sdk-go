@@ -170,7 +170,7 @@ type envConfig struct {
 	// services.
 	//
 	// AWS_USE_DUALSTACK_ENDPOINT=true
-	UseDualStackEndpoint endpoints.DualStackEndpoint
+	UseDualStackEndpoint endpoints.DualStackEndpointState
 }
 
 var (
@@ -390,7 +390,7 @@ func setFromEnvVal(dst *string, keys []string) {
 	}
 }
 
-func setUseDualStackEndpointFromEnvVal(dst *endpoints.DualStackEndpoint, keys []string) error {
+func setUseDualStackEndpointFromEnvVal(dst *endpoints.DualStackEndpointState, keys []string) error {
 	for _, k := range keys {
 		value := os.Getenv(k)
 		if len(value) == 0 {
@@ -399,12 +399,12 @@ func setUseDualStackEndpointFromEnvVal(dst *endpoints.DualStackEndpoint, keys []
 
 		switch {
 		case strings.EqualFold(value, "true"):
-			*dst = endpoints.DualStackEndpointEnabled
+			*dst = endpoints.DualStackEndpointStateEnabled
 		case strings.EqualFold(value, "false"):
-			*dst = endpoints.DualStackEndpointDisabled
+			*dst = endpoints.DualStackEndpointStateDisabled
 		default:
 			return fmt.Errorf(
-				"invalid value for environment variable, %s=%s, need true, false or auto",
+				"invalid value for environment variable, %s=%s, need true, false",
 				k, value)
 		}
 	}

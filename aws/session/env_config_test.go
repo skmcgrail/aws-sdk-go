@@ -361,7 +361,7 @@ func TestLoadEnvConfig(t *testing.T) {
 				"AWS_USE_DUALSTACK_ENDPOINT": "true",
 			},
 			Config: envConfig{
-				UseDualStackEndpoint:  endpoints.DualStackEndpointEnabled,
+				UseDualStackEndpoint:  endpoints.DualStackEndpointStateEnabled,
 				SharedCredentialsFile: shareddefaults.SharedCredentialsFilename(),
 				SharedConfigFile:      shareddefaults.SharedConfigFilename(),
 			},
@@ -371,7 +371,7 @@ func TestLoadEnvConfig(t *testing.T) {
 				"AWS_USE_DUALSTACK_ENDPOINT": "false",
 			},
 			Config: envConfig{
-				UseDualStackEndpoint:  endpoints.DualStackEndpointDisabled,
+				UseDualStackEndpoint:  endpoints.DualStackEndpointStateDisabled,
 				SharedCredentialsFile: shareddefaults.SharedCredentialsFilename(),
 				SharedConfigFile:      shareddefaults.SharedConfigFilename(),
 			},

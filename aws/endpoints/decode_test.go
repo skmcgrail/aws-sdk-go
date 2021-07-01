@@ -85,7 +85,7 @@ func TestDecodeEndpoints_V3(t *testing.T) {
 	p := resolver.(partitions)[0]
 
 	resolved, err := p.EndpointFor("s3", "us-west-2", func(options *Options) {
-		options.DualStackEndpoint = DualStackEndpointEnabled
+		options.UseDualStackEndpoint = DualStackEndpointStateEnabled
 	})
 	if err != nil {
 		t.Fatalf("expect no error, got %v", err)

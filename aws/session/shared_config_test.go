@@ -300,7 +300,7 @@ func TestLoadSharedConfig(t *testing.T) {
 			Expected: sharedConfig{
 				Profile:              "UseDualStackEndpointEnabled",
 				Region:               "us-west-2",
-				UseDualStackEndpoint: endpoints.DualStackEndpointEnabled,
+				UseDualStackEndpoint: endpoints.DualStackEndpointStateEnabled,
 			},
 		},
 		{
@@ -309,7 +309,7 @@ func TestLoadSharedConfig(t *testing.T) {
 			Expected: sharedConfig{
 				Profile:              "UseDualStackEndpointDisabled",
 				Region:               "us-west-2",
-				UseDualStackEndpoint: endpoints.DualStackEndpointDisabled,
+				UseDualStackEndpoint: endpoints.DualStackEndpointStateDisabled,
 			},
 		},
 	}

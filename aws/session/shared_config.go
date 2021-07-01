@@ -153,7 +153,7 @@ type sharedConfig struct {
 	// services.
 	//
 	// use_dualstack_endpoint=true
-	UseDualStackEndpoint endpoints.DualStackEndpoint
+	UseDualStackEndpoint endpoints.DualStackEndpointState
 }
 
 type sharedConfigFile struct {
@@ -657,13 +657,13 @@ func (e CredentialRequiresARNError) Error() string {
 
 // updateEndpointDiscoveryType will only update the dst with the value in the section, if
 // a valid key and corresponding EndpointDiscoveryType is found.
-func updateUseDualStackEndpoint(dst *endpoints.DualStackEndpoint, section ini.Section, key string) {
+func updateUseDualStackEndpoint(dst *endpoints.DualStackEndpointState, section ini.Section, key string) {
 	if !section.Has(key) {
 		return
 	}
 	if section.Bool(key) {
-		*dst = endpoints.DualStackEndpointEnabled
+		*dst = endpoints.DualStackEndpointStateEnabled
 	} else {
-		*dst = endpoints.DualStackEndpointDisabled
+		*dst = endpoints.DualStackEndpointStateDisabled
 	}
 }
